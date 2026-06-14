@@ -1,0 +1,3 @@
+# BLUE3 — meuip.rs
+User-agent: *
+Disallow: /

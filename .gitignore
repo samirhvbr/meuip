@@ -1,0 +1,19 @@
+# Segredos e configuração local — nunca versionar
+meuip.rs/config.php
+.env
+*.env
+
+# Logs e cache em runtime
+meuip.rs/LOG/*
+!meuip.rs/LOG/.gitkeep
+meuip.rs/cache/
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Backups
+*.bak
+*.orig
+*~

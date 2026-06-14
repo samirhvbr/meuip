@@ -1,0 +1,48 @@
+# MEUIP.RS — Apache
+
+# --- Front controller: roteia tudo que não for arquivo/diretório real ---
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# --- Bloqueia acesso direto a configuração, código e views ---
+<FilesMatch "^(config\.php|config\.example\.php|composer\.(json|lock))$">
+    Require all denied
+</FilesMatch>
+RedirectMatch 404 ^/(src|views)(/|$)
+RedirectMatch 404 ^/LOG(/|$)
+
+# Bloqueia backups e fontes sensíveis
+<FilesMatch "(\.(bak|orig|sql|log|md|sh|py|inc)|~)$">
+    Require all denied
+</FilesMatch>
+
+# --- Headers de segurança (todas as respostas) ---
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# --- Cache apenas para assets estáticos (as páginas PHP enviam no-store) ---
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css     "access plus 7 days"
+    ExpiresByType image/png    "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|png|ico|jpg|jpeg|svg|woff2?)$">
+        Header set Cache-Control "max-age=604800, public"
+    </FilesMatch>
+</IfModule>
+
+# --- Compressão ---
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/css application/json application/javascript
+</IfModule>
+
+Options -Indexes
