@@ -70,7 +70,6 @@
     ],
     "ask": [
       "Bash(sudo:*)",
-      "Bash(git push:*)",
       "Bash(php artisan migrate:*)",
       "Bash(composer require:*)",
       "Bash(composer update:*)",
