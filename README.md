@@ -5,6 +5,16 @@ provedor (ISP), país e região, com página web e endpoints `curl`.
 
 > **v2.0 (2026):** reescrita de segurança e arquitetura. Veja [Mudanças](#mudanças-na-v20).
 
+## 🔄 Antes de começar: `git pull`
+
+**SEMPRE** verifique atualizações remotas antes de escrever ou alterar qualquer coisa neste repositório:
+
+```bash
+git pull          # já está pré-autorizado (allow)
+```
+
+Trabalhar sobre uma base desatualizada gera conflitos. Puxe primeiro, sempre. Para só inspecionar antes: `git fetch && git status`.
+
 ## Arquitetura
 
 ```
