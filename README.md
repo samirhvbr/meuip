@@ -1,79 +1,79 @@
 # MEUIP.RS
 
-Serviço "qual é o meu IP" da BLUE3 — mostra ao visitante o IP público, ASN,
-provedor (ISP), país e região, com página web e endpoints `curl`.
+BLUE3's "what is my IP" service — shows the visitor their public IP, ASN,
+provider (ISP), country and region, with a web page and `curl` endpoints.
 
-> **v2.0 (2026):** reescrita de segurança e arquitetura. Veja [Mudanças](#mudanças-na-v20).
+> **v2.0 (2026):** security and architecture rewrite. See [Changes](#changes-in-v20).
 
-## 🔄 Antes de começar: `git pull`
+## 🔄 Before you start: `git pull`
 
-**SEMPRE** verifique atualizações remotas antes de escrever ou alterar qualquer coisa neste repositório:
+**ALWAYS** check for remote updates before writing or changing anything in this repository:
 
 ```bash
-git pull          # já está pré-autorizado (allow)
+git pull          # already pre-authorized (allow)
 ```
 
-Trabalhar sobre uma base desatualizada gera conflitos. Puxe primeiro, sempre. Para só inspecionar antes: `git fetch && git status`.
+Working on top of an outdated base causes conflicts. Pull first, always. To just inspect beforehand: `git fetch && git status`.
 
-## Arquitetura
+## Architecture
 
 ```
 meuip.rs/
-├── index.php            # front controller (roteamento)
-├── config.php           # segredos (NÃO versionado — ver config.example.php)
-├── config.example.php   # modelo de configuração
-├── schema.sql           # tabela meuip_visits (auditoria)
-├── src/                 # código (bloqueado para acesso web)
+├── index.php            # front controller (routing)
+├── config.php           # secrets (NOT versioned — see config.example.php)
+├── config.example.php   # configuration template
+├── schema.sql           # meuip_visits table (audit)
+├── src/                 # code (blocked from web access)
 │   ├── bootstrap.php     # config + autoloader
-│   ├── helpers.php       # escape, IP do cliente, respostas
-│   ├── Database.php      # PDO único, lazy, prepared statements
-│   ├── GeoLookup.php     # geo via cURL nativo + cache + timeout
-│   ├── UserAgent.php     # SO/navegador
-│   └── AccessLog.php     # registro de visitas (best-effort)
-├── views/               # templates (bloqueado para acesso web)
-│   ├── layout.php        # head + menu discreto + footer
-│   ├── home.php          # página principal
-│   └── doc.php           # documentação
-└── assets/style.css     # tema claro corporativo BLUE3
+│   ├── helpers.php       # escaping, client IP, responses
+│   ├── Database.php      # single PDO, lazy, prepared statements
+│   ├── GeoLookup.php     # geo via native cURL + cache + timeout
+│   ├── UserAgent.php     # OS/browser
+│   └── AccessLog.php     # visit logging (best-effort)
+├── views/               # templates (blocked from web access)
+│   ├── layout.php        # head + discreet menu + footer
+│   ├── home.php          # main page
+│   └── doc.php           # documentation
+└── assets/style.css     # BLUE3 corporate light theme
 ```
 
 ## Setup
 
-1. `cp config.example.php config.php` e preencha as credenciais (ou use as
-   variáveis de ambiente `MEUIP_DB_*` / `MEUIP_IPINFO_TOKEN`).
-2. Crie a tabela de visitas: `mysql -h <host> -u <user> -p <db> < meuip.rs/schema.sql`.
-3. Garanta que o diretório de cache (`cache_dir` ou `sys_get_temp_dir()`) seja
-   gravável pelo usuário do PHP-FPM.
+1. `cp config.example.php config.php` and fill in the credentials (or use the
+   `MEUIP_DB_*` / `MEUIP_IPINFO_TOKEN` environment variables).
+2. Create the visits table: `mysql -h <host> -u <user> -p <db> < meuip.rs/schema.sql`.
+3. Make sure the cache directory (`cache_dir` or `sys_get_temp_dir()`) is
+   writable by the PHP-FPM user.
 
 ## Endpoints
 
-| Rota | Resposta |
+| Route | Response |
 |------|----------|
-| `/` | IP em texto (curl) ou página HTML (navegador) |
+| `/` | IP as text (curl) or HTML page (browser) |
 | `/ip` | IP |
 | `/asn` | ASN |
-| `/isp` | Provedor |
-| `/country` | País (código) |
-| `/region` | Região |
+| `/isp` | Provider |
+| `/country` | Country (code) |
+| `/region` | Region |
 | `/coord` | `lat,long` |
-| `/all` | JSON com tudo |
-| `/full` | Página HTML completa |
-| `/doc` | Documentação |
+| `/all` | JSON with everything |
+| `/full` | Full HTML page |
+| `/doc` | Documentation |
 
-## Auditoria (INTRANET)
+## Audit (INTRANET)
 
-As visitas são gravadas em `meuip_visits`. O painel de auditoria fica no admin
-da INTRANET (`adm.blue3.com.br/admin` → card **Auditoria meuip.rs**), que lê a
-tabela via conexão read-only `meuip` (padrão das conexões auxiliares). Não há
-API de ingestão — a leitura é direta no banco.
+Visits are recorded in `meuip_visits`. The audit panel is in the INTRANET
+admin (`adm.blue3.com.br/admin` → **Auditoria meuip.rs** card), which reads the
+table via the read-only `meuip` connection (the standard for auxiliary connections). There is no
+ingestion API — reading is done directly on the database.
 
-## Mudanças na v2.0
+## Changes in v2.0
 
-- **SQL injection** eliminado — todo acesso ao banco usa prepared statements.
-- **Credenciais e token** movidos para `config.php` (gitignored) + `.gitignore`.
-- **XSS** corrigido — toda saída HTML passa por `htmlspecialchars`.
-- **shell_exec("curl ...")** substituído por cURL nativo com timeout e cache.
-- **Parsing** de ASN/geo agora via JSON (`json_decode`), não offsets de caractere.
-- **Logging** por `error_log`/banco — sem `shell_exec`. Cookies não são mais gravados.
-- Front controller real; endpoints `/ip`, `/asn`, etc. implementados.
-- Arquivos mortos removidos (`Bindex.php`, `full.php`, `meu.php`, `ip.php`, stubs).
+- **SQL injection** eliminated — all database access uses prepared statements.
+- **Credentials and token** moved to `config.php` (gitignored) + `.gitignore`.
+- **XSS** fixed — all HTML output goes through `htmlspecialchars`.
+- **shell_exec("curl ...")** replaced by native cURL with timeout and cache.
+- **Parsing** of ASN/geo now via JSON (`json_decode`), not character offsets.
+- **Logging** via `error_log`/database — no `shell_exec`. Cookies are no longer written.
+- Real front controller; `/ip`, `/asn`, etc. endpoints implemented.
+- Dead files removed (`Bindex.php`, `full.php`, `meu.php`, `ip.php`, stubs).
