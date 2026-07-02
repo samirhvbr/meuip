@@ -14,7 +14,7 @@ use Meuip\AccessLog;
 use Meuip\GeoLookup;
 use Meuip\UserAgent;
 
-const MEUIP_VERSION = '2.0';
+const MEUIP_VERSION = '2.1';
 
 // --- Entrada ---------------------------------------------------------------
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';

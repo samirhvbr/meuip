@@ -1,19 +1,43 @@
 /*
- * MEUIP.RS — tema claro corporativo BLUE3
+ * MEUIP.RS — tema BLUE3 (claro + escuro via tokens)
  * Samir Hanna Verza — BLUE3
  */
 
 :root {
+    color-scheme: light;
     --bg: #f5f7fa;
     --card: #ffffff;
-    --primary: #0071bc;
+    --primary: #0071bc;       /* azul da marca BLUE3 (IP, links) */
     --primary-dark: #005a96;
-    --accent: #29abe2;
-    --ink: #1f2d3d;
+    --accent: #29abe2;        /* ciano do dot / realces */
+    --ink: #1f2d3d;           /* texto principal */
     --muted: #6b7c93;
-    --line: #e6ebf1;
+    --line: #e6ebf1;          /* bordas e divisores */
+    --accent-bg: #e8f1fd;     /* fundo de badge/destaque */
+    --code-bg: #0f1b2d;       /* badges dos comandos curl (terminal) */
+    --code-fg: #cfe9fb;
+    --h2-bg: linear-gradient(to bottom, #fbfdff, #f7fafd);
     --shadow: 0 1px 2px rgba(16, 39, 64, .04), 0 8px 24px rgba(16, 39, 64, .06);
     --radius: 14px;
+}
+
+/* Dark mode: mantém a paleta da marca, clareando o azul p/ contraste AA
+   sobre fundo escuro (o code badge segue "terminal" nos dois temas). */
+[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #10151b;
+    --card: #1a212b;
+    --primary: #5ba3f5;
+    --primary-dark: #7cb8f8;
+    --accent: #38bdf8;
+    --ink: #e7eaee;
+    --muted: #94a3b8;
+    --line: #2a3441;
+    --accent-bg: #16283e;
+    --code-bg: #0b0f14;
+    --code-fg: #cfe9fb;
+    --h2-bg: linear-gradient(to bottom, #202a36, #1a212b);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .45);
 }
 
 * { box-sizing: border-box; }
@@ -33,7 +57,15 @@ body {
     -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
+    transition: background .25s, color .25s;
 }
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+}
+
+/* Foco visível por teclado nos dois temas (acessibilidade). */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -113,6 +145,8 @@ a:hover { text-decoration: underline; }
     font-size: clamp(30px, 7vw, 52px);
     font-weight: 800;
     color: var(--primary);
+    font-family: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+    letter-spacing: -1px;
     font-variant-numeric: tabular-nums;
     word-break: break-all;
     line-height: 1.1;
@@ -140,7 +174,7 @@ a:hover { text-decoration: underline; }
     letter-spacing: 1px;
     color: var(--primary);
     border-bottom: 1px solid var(--line);
-    background: linear-gradient(to bottom, #fbfdff, #f7fafd);
+    background: var(--h2-bg);
 }
 
 /* ---- Tabela de dados ---- */
@@ -178,8 +212,8 @@ a:hover { text-decoration: underline; }
 .doc code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 13px;
-    background: #0f1b2d;
-    color: #cfe9fb;
+    background: var(--code-bg);
+    color: var(--code-fg);
     padding: 4px 10px;
     border-radius: 7px;
     display: inline-block;
@@ -198,9 +232,105 @@ a:hover { text-decoration: underline; }
 .footer a { color: var(--muted); }
 .footer a:hover { color: var(--primary); }
 
+/* ---- Toggle de tema (só-ícone, no fim da nav) ---- */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+    line-height: 0;
+    transition: color .15s, border-color .15s, background .15s;
+}
+.theme-toggle:hover { color: var(--primary); border-color: var(--primary); }
+/* Lua no claro, sol no escuro (o data-theme já vem do anti-flash, sem swap por JS). */
+.theme-toggle .i-sun { display: none; }
+[data-theme="dark"] .theme-toggle .i-sun { display: inline; }
+[data-theme="dark"] .theme-toggle .i-moon { display: none; }
+
+/* ---- Hero: IP + botão copiar ---- */
+.ip-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--card);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1;
+    transition: color .15s, border-color .15s, background .15s;
+}
+.copy-btn:hover { color: var(--primary); border-color: var(--primary); }
+
+/* Feedback de "copiado" (verde, funciona nos dois temas). */
+.ok { color: #22a06b; border-color: #22a06b; }
+
+/* ---- Chips de contexto (IPv4/6, cidade, ASN) ---- */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--muted);
+    font-size: 13px;
+    max-width: 100%;
+}
+.chip svg { flex: none; }
+.chip .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.badge {
+    background: var(--accent-bg);
+    border-color: transparent;
+    color: var(--primary);
+    font-weight: 500;
+}
+
+/* ---- Copiar comando (curl) ---- */
+.cmd { display: inline-flex; align-items: center; gap: 8px; }
+.copy-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+    line-height: 0;
+    transition: color .15s, border-color .15s;
+}
+.copy-icon:hover { color: var(--primary); border-color: var(--primary); }
+
 @media (max-width: 560px) {
     .topbar-inner { padding: 12px 14px; }
     .wrap { padding: 24px 14px 36px; }
     .kv th { width: 42%; }
     .nav .sep { display: none; }
+    .chip { font-size: 12px; }
 }

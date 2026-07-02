@@ -15,6 +15,24 @@ $navItems = [
     '/all'     => 'Todos',
     '/doc'     => 'Docs',
 ];
+
+// Ícones SVG inline (Tabler, MIT) — zero dependência externa. Reusados pelas
+// views (via $cmd e chips). O check é constante no app.js (feedback do copiar).
+$svgAttrs  = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+$ICON_COPY = '<svg viewBox="0 0 24 24" width="18" height="18" ' . $svgAttrs . '><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+$ICON_MOON = '<svg class="i-moon" viewBox="0 0 24 24" width="18" height="18" ' . $svgAttrs . '><path d="M12 3c.13 0 .26 0 .39.01A7.5 7.5 0 0 0 20.31 15.45 9 9 0 1 1 12 3z"/></svg>';
+$ICON_SUN  = '<svg class="i-sun" viewBox="0 0 24 24" width="18" height="18" ' . $svgAttrs . '><circle cx="12" cy="12" r="4"/><path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1-.7l-.7.7m0 12.1l.7.7m-12.1-.7l-.7.7"/></svg>';
+$ICON_PIN  = '<svg viewBox="0 0 24 24" width="14" height="14" ' . $svgAttrs . '><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0-6 0"/><path d="M17.657 16.657 13.414 20.9a2 2 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/></svg>';
+$ICON_NET  = '<svg viewBox="0 0 24 24" width="14" height="14" ' . $svgAttrs . '><path d="M18.364 19.364a9 9 0 1 0-12.728 0"/><path d="M15.536 16.536a5 5 0 1 0-7.072 0"/><circle cx="12" cy="12" r="1"/></svg>';
+
+// Badge de comando curl com botão copiar à direita. O texto copiado vem do
+// próprio data-copy (fonte única), escapado com e() nos dois usos.
+$cmd = function (string $command) use ($ICON_COPY): string {
+    $c = e($command);
+
+    return '<span class="cmd"><code>' . $c . '</code>'
+        . '<button type="button" class="copy-icon" data-copy="' . $c . '" aria-label="Copiar comando">' . $ICON_COPY . '</button></span>';
+};
 ?><!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -28,7 +46,22 @@ $navItems = [
     <link rel="icon" type="image/png" href="/favicon/favicon-32x32.png" sizes="32x32">
     <link rel="icon" type="image/png" href="/favicon/favicon-16x16.png" sizes="16x16">
     <link rel="apple-touch-icon" sizes="152x152" href="/favicon/apple-touch-icon-152x152.png">
+
+    <!-- theme-color do chrome do mobile; o app.js troca no dark -->
+    <meta name="theme-color" id="meta-theme" content="#f5f7fa">
+    <!-- Anti-flash de tema: roda ANTES do CSS. Sem escolha salva, segue o SO. -->
+    <script>
+    (function () {
+        var t;
+        try { t = localStorage.getItem('theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') {
+            t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = t;
+    })();
+    </script>
     <link rel="stylesheet" href="/assets/style.css">
+    <script src="/assets/app.js" defer></script>
     <?php $matomo = meuip_config('matomo') ?? [];
     if (!empty($matomo['enabled']) && !empty($matomo['site_id'])):
         $matomoUrl = rtrim((string) ($matomo['url'] ?? 'https://a.blue3.cloud/'), '/') . '/';
@@ -64,6 +97,7 @@ $navItems = [
                     <?php if (!$first): ?><span class="sep">·</span><?php endif; $first = false; ?>
                     <a href="<?= e($href) ?>"><?= e($label) ?></a>
                 <?php endforeach; ?>
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema claro/escuro" title="Alternar tema"><?= $ICON_MOON . $ICON_SUN ?></button>
             </nav>
         </div>
     </header>

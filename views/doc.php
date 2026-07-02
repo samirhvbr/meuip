@@ -15,13 +15,13 @@ $ip = $ip ?? '';
 <div class="card">
     <h2>Endpoints</h2>
     <table class="doc">
-        <tr><td>IP do cliente</td><td><code>curl meuip.rs/ip</code></td><td class="out">texto</td></tr>
-        <tr><td>ASN</td><td><code>curl meuip.rs/asn</code></td><td class="out">texto</td></tr>
-        <tr><td>Provedor (ISP)</td><td><code>curl meuip.rs/isp</code></td><td class="out">texto</td></tr>
-        <tr><td>País (código)</td><td><code>curl meuip.rs/country</code></td><td class="out">texto</td></tr>
-        <tr><td>Região</td><td><code>curl meuip.rs/region</code></td><td class="out">texto</td></tr>
-        <tr><td>Coordenadas</td><td><code>curl meuip.rs/coord</code></td><td class="out">lat,long</td></tr>
-        <tr><td>Todos os dados</td><td><code>curl meuip.rs/all</code></td><td class="out">JSON</td></tr>
+        <tr><td>IP do cliente</td><td><?= $cmd('curl meuip.rs/ip') ?></td><td class="out">texto</td></tr>
+        <tr><td>ASN</td><td><?= $cmd('curl meuip.rs/asn') ?></td><td class="out">texto</td></tr>
+        <tr><td>Provedor (ISP)</td><td><?= $cmd('curl meuip.rs/isp') ?></td><td class="out">texto</td></tr>
+        <tr><td>País (código)</td><td><?= $cmd('curl meuip.rs/country') ?></td><td class="out">texto</td></tr>
+        <tr><td>Região</td><td><?= $cmd('curl meuip.rs/region') ?></td><td class="out">texto</td></tr>
+        <tr><td>Coordenadas</td><td><?= $cmd('curl meuip.rs/coord') ?></td><td class="out">lat,long</td></tr>
+        <tr><td>Todos os dados</td><td><?= $cmd('curl meuip.rs/all') ?></td><td class="out">JSON</td></tr>
     </table>
 </div>
 
