@@ -29,6 +29,31 @@ $navItems = [
     <link rel="icon" type="image/png" href="/favicon/favicon-16x16.png" sizes="16x16">
     <link rel="apple-touch-icon" sizes="152x152" href="/favicon/apple-touch-icon-152x152.png">
     <link rel="stylesheet" href="/assets/style.css">
+    <?php $matomo = meuip_config('matomo') ?? [];
+    if (!empty($matomo['enabled']) && !empty($matomo['site_id'])):
+        $matomoUrl = rtrim((string) ($matomo['url'] ?? 'https://a.blue3.cloud/'), '/') . '/';
+        $matomoSiteId = (string) $matomo['site_id'];
+        $matomoCookieDomain = (string) ($matomo['cookie_domain'] ?? '');
+    ?>
+    <!-- Matomo (self-hosted a.blue3.cloud) -->
+    <script>
+      var _paq = window._paq = window._paq || [];
+      <?php if ($matomoCookieDomain !== ''): ?>
+      _paq.push(["setCookieDomain", "<?= e($matomoCookieDomain) ?>"]);
+      <?php endif; ?>
+      _paq.push(['trackPageView']);
+      _paq.push(['enableLinkTracking']);
+      (function() {
+        var u="<?= e($matomoUrl) ?>";
+        _paq.push(['setTrackerUrl', u+'matomo.php']);
+        _paq.push(['setSiteId', '<?= e($matomoSiteId) ?>']);
+        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+      })();
+    </script>
+    <noscript><p><img referrerpolicy="no-referrer-when-downgrade" src="<?= e($matomoUrl) ?>matomo.php?idsite=<?= e($matomoSiteId) ?>&amp;rec=1" style="border:0;" alt="" /></p></noscript>
+    <!-- End Matomo -->
+    <?php endif; ?>
 </head>
 <body>
     <header class="topbar">

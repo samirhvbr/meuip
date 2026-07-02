@@ -44,4 +44,14 @@ return [
 
     // Mostrar erros na tela (apenas em desenvolvimento). Em produção: false.
     'debug' => (bool) (getenv('MEUIP_DEBUG') ?: false),
+
+    // Matomo Analytics (self-hosted em a.blue3.cloud). O snippet só entra no
+    // <head> (views/layout.php) quando 'enabled' é true E 'site_id' definido.
+    // site_id 8 = meuip.rs. No config.php real, defina enabled=true para ativar.
+    'matomo' => [
+        'enabled'       => (bool) (getenv('MATOMO_ENABLED') ?: false),
+        'url'           => getenv('MATOMO_URL') ?: 'https://a.blue3.cloud/',
+        'site_id'       => getenv('MATOMO_SITE_ID') ?: '8',
+        'cookie_domain' => getenv('MATOMO_COOKIE_DOMAIN') ?: '',
+    ],
 ];
