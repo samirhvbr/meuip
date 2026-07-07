@@ -23,6 +23,10 @@ final class NetTrace
     private const BIN4 = 'traceroute';
     private const BIN6 = 'traceroute6';
 
+    // "* * *" consecutivos para abortar cedo no stream: resto do caminho está
+    // filtrado (ICMP), não vale arrastar a sessão até o max_hops.
+    private const STALL_HOPS = 5;
+
     // Defaults quando config.php não traz o bloco 'trace' (ver config.example.php).
     private const DEFAULTS = [
         'enabled'         => true,
@@ -143,12 +147,22 @@ final class NetTrace
     // ---- Execução: comando -----------------------------------------------
 
     /** argv sem shell. `timeout` (coreutils) garante o teto de parede. */
-    private static function argv(array $t): array
+    private static function argv(array $t, bool $live = false): array
     {
         $bin = ($t['family'] ?? 4) === 6 ? self::BIN6 : self::BIN4;
         $to  = (string) (int) self::opt('timeout');
         $max = (string) (int) self::opt('max_hops');
-        return ['timeout', '-k', '2', $to, $bin, '-n', '-q', '1', '-w', '1', '-m', $max, (string) $t['ip']];
+        // stdbuf -oL: saída line-buffered mesmo em pipe — cada salto chega ao
+        // SSE na hora, em vez de acumular nos blocos de 4 KB do stdio.
+        $args = ['timeout', '-k', '2', $to, 'stdbuf', '-oL', $bin, '-n', '-q', '1', '-w', '1', '-m', $max];
+        if ($live) {
+            // -N 1: sonda UM salto por vez (default são 16 em paralelo) — a
+            // página ao vivo revela a rota salto a salto, na cadência real.
+            $args[] = '-N';
+            $args[] = '1';
+        }
+        $args[] = (string) $t['ip'];
+        return $args;
     }
 
     // ---- Execução: streaming SSE -----------------------------------------
@@ -170,7 +184,7 @@ final class NetTrace
             self::sseEvent('start', ['target' => $t['display'], 'ip' => $t['ip']]);
 
             $desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-            $proc = @proc_open(self::argv($t), $desc, $pipes);
+            $proc = @proc_open(self::argv($t, true), $desc, $pipes);
             if (!is_resource($proc)) {
                 self::sseEvent('error', ['message' => 'Falha ao iniciar o traceroute']);
                 self::sseEvent('done', ['ok' => false]);
@@ -183,6 +197,9 @@ final class NetTrace
             $deadline = time() + (int) self::opt('timeout') + 3;
             $buf = '';
             $hops = 0;
+            $stars = 0;      // "* * *" consecutivos (aborta cedo, ver STALL_HOPS)
+            $note = '';
+            $timedOut = false;
             $lastBeat = time();
 
             while (true) {
@@ -192,6 +209,7 @@ final class NetTrace
                 }
                 if (time() > $deadline) {
                     @proc_terminate($proc);
+                    $timedOut = true;
                     self::sseEvent('error', ['message' => 'Tempo esgotado']);
                     break;
                 }
@@ -218,6 +236,15 @@ final class NetTrace
                             $hops++;
                             self::sseEvent('hop', $hop);
                             $lastBeat = time();
+                            if ($hop['timeout']) {
+                                if (++$stars >= self::STALL_HOPS) {
+                                    @proc_terminate($proc);
+                                    $note = 'Destino sem resposta nos últimos saltos (ICMP filtrado no caminho).';
+                                    break 2; // sai do while (true)
+                                }
+                            } else {
+                                $stars = 0;
+                            }
                         }
                     }
                 } elseif (time() - $lastBeat >= 5) {
@@ -250,7 +277,11 @@ final class NetTrace
             }
             @proc_close($proc);
 
-            self::sseEvent('done', ['ok' => true, 'hops' => $hops]);
+            $done = ['ok' => !$timedOut, 'hops' => $hops];
+            if ($note !== '') {
+                $done['note'] = $note;
+            }
+            self::sseEvent('done', $done);
         } finally {
             $release();
         }

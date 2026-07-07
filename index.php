@@ -15,7 +15,7 @@ use Meuip\GeoLookup;
 use Meuip\NetTrace;
 use Meuip\UserAgent;
 
-const MEUIP_VERSION = '2.2';
+const MEUIP_VERSION = '2.3';
 
 // --- Entrada ---------------------------------------------------------------
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -59,13 +59,16 @@ if ($path === '/trace' || str_starts_with($path, '/trace/')) {
     }
     $targetHost = $custom ? $rawHost : $ip;
 
-    // Página interativa: só quando é browser em /trace sem alvo/stream.
-    if (!$isStream && !$custom && $sub === '' && !meuip_is_cli_client()) {
+    // Navegador (tudo menos o stream SSE): sempre a página ao vivo. O alvo de
+    // /trace/<host> ou ?host= vai pré-preenchido e a página dispara sozinha —
+    // também cobre o submit sem JS do formulário (GET /trace?host=…).
+    if (!$isStream && !meuip_is_cli_client()) {
         meuip_view('trace', [
             'title'       => 'BLUE3 — meuip.rs · traceroute',
             'version'     => MEUIP_VERSION,
             'ip'          => $ip,
             'allowCustom' => NetTrace::allowCustom(),
+            'initialHost' => $custom ? trim($rawHost) : '',
         ]);
         exit;
     }

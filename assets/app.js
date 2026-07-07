@@ -63,7 +63,9 @@
 
 /*
  * Traceroute ao vivo (página /trace). Consome o endpoint SSE /trace/stream e
- * anexa cada salto numa tabela. Só ativa se o formulário existir na página.
+ * anexa cada salto na tabela conforme chega. A página dispara sozinha
+ * (data-autostart) com o alvo da URL (?host= ou /trace/<host>) ou o IP do
+ * próprio visitante. Só ativa se o formulário existir na página.
  */
 (function () {
     'use strict';
@@ -85,6 +87,7 @@
     var es = null;
     var finished = false;
     var lastError = '';
+    var targetIp = '';
 
     function setStatus(txt, cls) {
         statusEl.hidden = false;
@@ -116,18 +119,51 @@
         return d;
     }
 
+    // Linha-fantasma "sondando…" — mostra o próximo salto sendo testado (cada
+    // um leva até ~1 s), dando a sensação de progresso contínuo.
+    function clearProbing() {
+        var p = body.querySelector('.probing');
+        if (p) { p.parentNode.removeChild(p); }
+    }
+
+    function showProbing(nextHop) {
+        clearProbing();
+        var tr = document.createElement('tr');
+        tr.className = 'probing';
+        tr.appendChild(td(String(nextHop), 'c-hop'));
+        tr.appendChild(td('sondando…', 'c-host'));
+        tr.appendChild(td('', 'c-rtt'));
+        body.appendChild(tr);
+    }
+
     function addHop(h) {
         table.hidden = false;
+        clearProbing();
         var tr = document.createElement('tr');
         tr.appendChild(td(String(h.hop), 'c-hop'));
         if (h.timeout || !h.ip) {
             tr.appendChild(td('* * *', 'c-host muted'));
             tr.appendChild(td('', 'c-rtt'));
         } else {
+            if (targetIp && h.ip === targetIp) {
+                tr.className = 'is-dest'; // chegou ao destino
+            }
             tr.appendChild(td(h.ip, 'c-host'));
-            tr.appendChild(td(h.ms ? h.ms + ' ms' : '', 'c-rtt'));
+            var rtt = td(h.ms ? h.ms + ' ms' : '', 'c-rtt');
+            var v = parseFloat(h.ms);
+            if (isFinite(v)) {
+                // Barra de latência (250 ms ≈ barra cheia).
+                var bar = document.createElement('div');
+                bar.className = 'rtt-bar';
+                var fill = document.createElement('i');
+                fill.style.width = Math.max(2, Math.min(100, v / 2.5)) + '%';
+                bar.appendChild(fill);
+                rtt.appendChild(bar);
+            }
+            tr.appendChild(rtt);
         }
         body.appendChild(tr);
+        showProbing(h.hop + 1);
     }
 
     function parse(ev) {
@@ -140,6 +176,7 @@
         table.hidden = true;
         finished = false;
         lastError = '';
+        targetIp = '';
         setStatus('Traçando rota…', 'busy');
         running(true);
 
@@ -148,7 +185,10 @@
 
         es.addEventListener('start', function (ev) {
             var d = parse(ev);
+            targetIp = d.ip || '';
             setStatus('Traçando até ' + (d.target || host || 'você') + ' …', 'busy');
+            table.hidden = false;
+            showProbing(1);
         });
         es.addEventListener('hop', function (ev) {
             addHop(parse(ev));
@@ -162,12 +202,15 @@
         });
         es.addEventListener('done', function (ev) {
             finished = true;
+            clearProbing();
             var d = parse(ev);
             if (d && d.ok === false) {
                 if (lastError) { setStatus(lastError, 'err'); }
             } else {
                 var n = (d && typeof d.hops === 'number') ? d.hops : body.children.length;
-                setStatus('Concluído — ' + n + (n === 1 ? ' salto.' : ' saltos.'), 'ok');
+                var txt = 'Concluído — ' + n + (n === 1 ? ' salto.' : ' saltos.');
+                if (d && d.note) { txt += ' ' + d.note; }
+                setStatus(txt, 'ok');
             }
             closeStream();
         });
@@ -175,34 +218,54 @@
         // se ainda não recebemos o evento 'done'.
         es.onerror = function () {
             if (!finished) {
+                clearProbing();
                 setStatus(lastError || 'Conexão encerrada antes de concluir.', 'err');
             }
             closeStream();
         };
     }
 
+    // Mantém a URL compartilhável (/trace?host=…) sem recarregar a página.
+    function syncUrl(host) {
+        try {
+            history.replaceState(null, '', host ? '/trace?host=' + encodeURIComponent(host) : '/trace');
+        } catch (e) { /* browsers antigos */ }
+    }
+
+    function run(host) {
+        host = (host || '').trim();
+        if (input) { input.value = host || selfIp; }
+        syncUrl(host);
+        start(host);
+    }
+
     form.addEventListener('submit', function (ev) {
         ev.preventDefault();
         var host = allowCustom && input ? input.value.trim() : '';
-        start(host);
+        if (host === selfIp) { host = ''; } // campo com o próprio IP = rota até você
+        run(host);
     });
 
     stopBtn.addEventListener('click', function () {
         closeStream();
+        clearProbing();
         setStatus('Interrompido.', '');
     });
 
-    // Atalhos de preenchimento (chips "usar meu IP", 8.8.8.8, …).
+    // Atalhos: preenchem o campo e já disparam o trace.
     form.addEventListener('click', function (ev) {
         var fill = ev.target.closest('[data-fill]');
-        if (fill && input) {
-            input.value = fill.getAttribute('data-fill');
-            input.focus();
+        if (fill) {
+            run(fill.getAttribute('data-fill'));
             return;
         }
-        if (ev.target.closest('[data-fill-self]') && input) {
-            input.value = selfIp;
-            input.focus();
+        if (ev.target.closest('[data-fill-self]')) {
+            run('');
         }
     });
+
+    // Autostart: alvo vindo da URL ou o IP do próprio visitante.
+    if (form.getAttribute('data-autostart') === '1') {
+        run(form.getAttribute('data-initial-host') || '');
+    }
 })();

@@ -3,9 +3,10 @@
 if (!defined('MEUIP_BOOTED')) {
     exit;
 }
-/** @var string $ip @var bool $allowCustom */
+/** @var string $ip @var bool $allowCustom @var string $initialHost */
 $ip          = $ip ?? '';
 $allowCustom = $allowCustom ?? true;
+$initialHost = $initialHost ?? ''; // alvo vindo da URL (?host= ou /trace/<host>)
 ?>
 <section class="hero">
     <div class="label">Traceroute</div>
@@ -14,12 +15,14 @@ $allowCustom = $allowCustom ?? true;
 </section>
 
 <div class="card">
+    <h2>Traceroute ao vivo</h2>
     <form id="trace-form" class="trace-form" autocomplete="off"
-          data-self-ip="<?= e($ip) ?>" data-allow-custom="<?= $allowCustom ? '1' : '0' ?>">
+          data-self-ip="<?= e($ip) ?>" data-allow-custom="<?= $allowCustom ? '1' : '0' ?>"
+          data-initial-host="<?= e($initialHost) ?>" data-autostart="1">
         <label for="trace-host" class="trace-label">Destino</label>
         <div class="trace-input-row">
             <input id="trace-host" name="host" type="text" class="trace-input mono"
-                   value="<?= e($ip) ?>"
+                   value="<?= e($initialHost !== '' ? $initialHost : $ip) ?>"
                    placeholder="IP ou host (ex.: 8.8.8.8, google.com)"
                    spellcheck="false" inputmode="url" maxlength="253"
                    <?= $allowCustom ? '' : 'readonly' ?>>

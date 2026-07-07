@@ -61,8 +61,16 @@ $cmd = function (string $command) use ($ICON_COPY): string {
         document.documentElement.dataset.theme = t;
     })();
     </script>
-    <link rel="stylesheet" href="/assets/style.css">
-    <script src="/assets/app.js" defer></script>
+    <?php
+    // Cache-busting: o .htaccess cacheia assets por 7 dias no browser; o ?v=
+    // (mtime do arquivo) força baixar a versão nova a cada deploy.
+    $asset = static function (string $p): string {
+        $t = @filemtime(MEUIP_ROOT . $p);
+        return $p . ($t ? '?v=' . $t : '');
+    };
+    ?>
+    <link rel="stylesheet" href="<?= e($asset('/assets/style.css')) ?>">
+    <script src="<?= e($asset('/assets/app.js')) ?>" defer></script>
     <?php $matomo = meuip_config('matomo') ?? [];
     if (!empty($matomo['enabled']) && !empty($matomo['site_id'])):
         $matomoUrl = rtrim((string) ($matomo['url'] ?? 'https://a.blue3.cloud/'), '/') . '/';
