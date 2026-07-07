@@ -15,7 +15,7 @@ use Meuip\GeoLookup;
 use Meuip\NetTrace;
 use Meuip\UserAgent;
 
-const MEUIP_VERSION = '2.3';
+const MEUIP_VERSION = '2.4';
 
 // --- Entrada ---------------------------------------------------------------
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -42,6 +42,7 @@ if ($path === '/trace' || str_starts_with($path, '/trace/')) {
 
     $sub      = ltrim(substr($path, strlen('/trace')), '/'); // '' | 'stream' | '<host>'
     $isStream = ($sub === 'stream') || isset($_GET['stream']);
+    $persist  = isset($_GET['loop']); // modo contínuo (estilo mtr), só no SSE/página
 
     // Alvo: subpath /trace/<host> tem prioridade; senão ?host=; senão o IP do visitante.
     $rawHost = '';
@@ -69,6 +70,7 @@ if ($path === '/trace' || str_starts_with($path, '/trace/')) {
             'ip'          => $ip,
             'allowCustom' => NetTrace::allowCustom(),
             'initialHost' => $custom ? trim($rawHost) : '',
+            'initialLoop' => $persist,
         ]);
         exit;
     }
@@ -94,7 +96,7 @@ if ($path === '/trace' || str_starts_with($path, '/trace/')) {
     }
 
     if ($isStream) {
-        NetTrace::streamSse($resolved);
+        NetTrace::streamSse($resolved, $persist);
     } else {
         header('Content-Type: text/plain; charset=utf-8');
         header('Cache-Control: no-store');

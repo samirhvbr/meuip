@@ -388,6 +388,26 @@ a:hover { text-decoration: underline; }
 .trace-btn.busy { opacity: .7; cursor: progress; }
 .trace-btn[disabled] { cursor: not-allowed; }
 
+/* Checkbox do modo contínuo (estilo mtr) */
+.trace-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+}
+.trace-check input {
+    accent-color: var(--primary);
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    cursor: pointer;
+    flex: none;
+}
+
 .trace-hint {
     margin: 12px 0 4px;
     font-size: 13px;
@@ -478,6 +498,13 @@ a:hover { text-decoration: underline; }
 /* Salto final (destino alcançado). */
 .trace-table .is-dest .c-host { color: var(--primary); font-weight: 700; }
 
+/* Colunas de estatística do modo contínuo (Perda/Env/Méd/Melhor/Pior). */
+.trace-table .h-num, .trace-table .c-num { text-align: right; white-space: nowrap; }
+.trace-table .c-num { color: var(--ink); }
+.trace-table .c-loss.loss-warn { color: #d97706; font-weight: 600; }
+.trace-table .c-loss.loss-bad  { color: #d1495b; font-weight: 700; }
+.trace-table.is-persist .c-rtt, .trace-table.is-persist .h-rtt { width: auto; }
+
 /* Barra de latência sob o RTT (250 ms ≈ cheia). */
 .rtt-bar {
     height: 3px;
@@ -496,5 +523,7 @@ a:hover { text-decoration: underline; }
 @media (max-width: 560px) {
     .trace-form { padding: 16px 14px 6px; }
     .trace-status { margin: 4px 14px 0; }
-    .trace-table { width: calc(100% - 28px); margin: 12px 14px 16px; }
+    .trace-table { width: calc(100% - 28px); margin: 12px 14px 16px; font-size: 12.5px; }
+    /* No modo contínuo, esconde Méd/Melhor/Pior em telas estreitas. */
+    .trace-table .h-xtra, .trace-table .c-xtra { display: none; }
 }

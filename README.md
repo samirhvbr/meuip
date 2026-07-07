@@ -58,7 +58,7 @@ meuip.rs/
 | `/coord` | `lat,long` |
 | `/all` | JSON with everything |
 | `/full` | Full HTML page |
-| `/trace` | Traceroute: live page that auto-starts (browser) or route to your own IP (curl) |
+| `/trace` | Traceroute: live page that auto-starts, with optional continuous mtr-style monitoring (browser) or route to your own IP (curl) |
 | `/trace/<host>` | Traceroute to a target — plain text (curl) or live page (browser) |
 | `/trace/stream[?host=]` | Live traceroute via SSE (used by the page) |
 | `/doc` | Documentation |

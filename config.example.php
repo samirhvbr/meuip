@@ -63,8 +63,11 @@ return [
         // false = só traça o IP do próprio visitante (desliga o alvo livre).
         'allow_custom'    => (bool) (getenv('MEUIP_TRACE_ALLOW_CUSTOM') ?: true),
         'max_hops'        => (int) (getenv('MEUIP_TRACE_MAX_HOPS') ?: 20),
-        'timeout'         => (int) (getenv('MEUIP_TRACE_TIMEOUT') ?: 25),    // teto de parede (s)
+        'timeout'         => (int) (getenv('MEUIP_TRACE_TIMEOUT') ?: 25),    // teto de parede por passada (s)
         'rate_per_minute' => (int) (getenv('MEUIP_TRACE_RATE') ?: 6),        // por IP de cliente
         'max_concurrent'  => (int) (getenv('MEUIP_TRACE_CONCURRENCY') ?: 4), // execuções simultâneas
+        // Modo contínuo (estilo mtr): teto de duração da sessão que fica
+        // repetindo passadas e acumulando estatísticas na página.
+        'persist_seconds' => (int) (getenv('MEUIP_TRACE_PERSIST') ?: 300),
     ],
 ];

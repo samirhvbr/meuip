@@ -3,10 +3,11 @@
 if (!defined('MEUIP_BOOTED')) {
     exit;
 }
-/** @var string $ip @var bool $allowCustom @var string $initialHost */
+/** @var string $ip @var bool $allowCustom @var string $initialHost @var bool $initialLoop */
 $ip          = $ip ?? '';
 $allowCustom = $allowCustom ?? true;
-$initialHost = $initialHost ?? ''; // alvo vindo da URL (?host= ou /trace/<host>)
+$initialHost = $initialHost ?? '';        // alvo vindo da URL (?host= ou /trace/<host>)
+$initialLoop = !empty($initialLoop);      // modo contínuo pré-marcado (?loop=1)
 ?>
 <section class="hero">
     <div class="label">Traceroute</div>
@@ -29,6 +30,10 @@ $initialHost = $initialHost ?? ''; // alvo vindo da URL (?host= ou /trace/<host>
             <button type="submit" class="trace-btn" id="trace-run"><?= $ICON_NET ?><span>Traçar rota</span></button>
             <button type="button" class="trace-btn ghost" id="trace-stop" hidden>Parar</button>
         </div>
+        <label class="trace-check" for="trace-persist">
+            <input type="checkbox" id="trace-persist"<?= $initialLoop ? ' checked' : '' ?>>
+            Modo contínuo — fica pingando os saltos e acumulando estatísticas (perda, média)
+        </label>
         <?php if ($allowCustom): ?>
             <div class="trace-hint">
                 <button type="button" class="linklike" data-fill-self>usar meu IP<?= $ip !== '' ? ' (' . e($ip) . ')' : '' ?></button>
@@ -45,7 +50,7 @@ $initialHost = $initialHost ?? ''; // alvo vindo da URL (?host= ou /trace/<host>
     <div id="trace-status" class="trace-status" hidden></div>
 
     <table id="trace-table" class="trace-table" hidden>
-        <thead><tr><th class="h-hop">#</th><th class="h-host">IP</th><th class="h-rtt">RTT</th></tr></thead>
+        <thead id="trace-head"><tr><th class="h-hop">#</th><th class="h-host">IP</th><th class="h-rtt">RTT</th></tr></thead>
         <tbody id="trace-body"></tbody>
     </table>
 

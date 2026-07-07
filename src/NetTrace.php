@@ -32,9 +32,10 @@ final class NetTrace
         'enabled'         => true,
         'allow_custom'    => true, // false = só o IP do visitante (sem alvo livre)
         'max_hops'        => 20,
-        'timeout'         => 25,   // teto de parede por execução (s)
+        'timeout'         => 25,   // teto de parede por passada (s)
         'rate_per_minute' => 6,    // por IP de cliente
         'max_concurrent'  => 4,    // execuções simultâneas no servidor
+        'persist_seconds' => 300,  // teto do modo contínuo (estilo mtr), por sessão
     ];
 
     // ---- Configuração ----------------------------------------------------
@@ -147,11 +148,11 @@ final class NetTrace
     // ---- Execução: comando -----------------------------------------------
 
     /** argv sem shell. `timeout` (coreutils) garante o teto de parede. */
-    private static function argv(array $t, bool $live = false): array
+    private static function argv(array $t, bool $live = false, ?int $maxHops = null): array
     {
         $bin = ($t['family'] ?? 4) === 6 ? self::BIN6 : self::BIN4;
         $to  = (string) (int) self::opt('timeout');
-        $max = (string) (int) self::opt('max_hops');
+        $max = (string) ($maxHops !== null ? max(1, $maxHops) : (int) self::opt('max_hops'));
         // stdbuf -oL: saída line-buffered mesmo em pipe — cada salto chega ao
         // SSE na hora, em vez de acumular nos blocos de 4 KB do stdio.
         $args = ['timeout', '-k', '2', $to, 'stdbuf', '-oL', $bin, '-n', '-q', '1', '-w', '1', '-m', $max];
@@ -167,124 +168,188 @@ final class NetTrace
 
     // ---- Execução: streaming SSE -----------------------------------------
 
-    /** Roda o traceroute e transmite cada salto via SSE. Bloqueia até terminar. */
-    public static function streamSse(array $t): void
+    /**
+     * Roda o traceroute e transmite cada salto via SSE. Com $persist=true
+     * (modo contínuo, estilo mtr), repete passadas até o cliente desconectar
+     * ou o teto persist_seconds — o front acumula as estatísticas por salto.
+     * Bloqueia até terminar.
+     */
+    public static function streamSse(array $t, bool $persist = false): void
     {
         self::sseInit();
 
-        $release = self::acquireSlot();
-        if ($release === null) {
+        $slot = self::acquireSlot();
+        if ($slot === null) {
             self::sseEvent('error', ['message' => 'Muitas execuções simultâneas no servidor. Tente em instantes.']);
             self::sseEvent('done', ['ok' => false]);
             return;
         }
 
         try {
-            @set_time_limit((int) self::opt('timeout') + 10);
-            self::sseEvent('start', ['target' => $t['display'], 'ip' => $t['ip']]);
+            $persistFor = $persist ? max(30, (int) self::opt('persist_seconds')) : 0;
+            @set_time_limit((int) self::opt('timeout') + $persistFor + 15);
+            self::sseEvent('start', [
+                'target'  => $t['display'],
+                'ip'      => $t['ip'],
+                'persist' => $persist ? 1 : 0,
+            ]);
 
-            $desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-            $proc = @proc_open(self::argv($t, true), $desc, $pipes);
-            if (!is_resource($proc)) {
-                self::sseEvent('error', ['message' => 'Falha ao iniciar o traceroute']);
-                self::sseEvent('done', ['ok' => false]);
-                return;
-            }
+            $sessionEnd = time() + $persistFor;
+            $maxHops    = (int) self::opt('max_hops');
+            $pass       = 0;
+            $doneHops   = 0;
+            $note       = '';
+            $ok         = true;
 
-            stream_set_blocking($pipes[1], false);
-            stream_set_blocking($pipes[2], false);
+            do {
+                $pass++;
+                if ($persist) {
+                    self::sseEvent('pass', ['n' => $pass]);
+                }
+                // 1ª passada sonda um salto por vez (revelação ao vivo); as
+                // seguintes vão em paralelo, limitadas ao alcance já conhecido.
+                $r = self::passSse($t, $pass === 1, $maxHops);
+                @touch($slot); // heartbeat: sessão longa não é recolhida como órfã
 
-            $deadline = time() + (int) self::opt('timeout') + 3;
-            $buf = '';
-            $hops = 0;
-            $stars = 0;      // "* * *" consecutivos (aborta cedo, ver STALL_HOPS)
-            $note = '';
-            $timedOut = false;
-            $lastBeat = time();
-
-            while (true) {
+                if ($r['aborted'] || $r['timedOut']) {
+                    $ok = !$r['timedOut'];
+                    break;
+                }
+                if ($pass === 1) {
+                    $note = $r['note'];
+                    $doneHops = $r['lastHop'];
+                    if ($r['lastHop'] > 0) {
+                        $maxHops = $r['lastHop'];
+                    }
+                }
+                if (!$persist) {
+                    break;
+                }
+                if (time() >= $sessionEnd) {
+                    $note = 'Sessão contínua encerrada (teto de ' . $persistFor . ' s).';
+                    break;
+                }
+                echo ": tick\n\n"; // detecta desconexão entre passadas
+                @flush();
                 if (connection_aborted()) {
-                    @proc_terminate($proc);
                     break;
                 }
-                if (time() > $deadline) {
-                    @proc_terminate($proc);
-                    $timedOut = true;
-                    self::sseEvent('error', ['message' => 'Tempo esgotado']);
-                    break;
-                }
+                usleep(800000);
+            } while (true);
 
-                $read = [$pipes[1], $pipes[2]];
-                $w = null;
-                $x = null;
-                $n = @stream_select($read, $w, $x, 1);
-                if ($n === false) {
-                    break;
-                }
-                if ($n > 0) {
-                    foreach ($read as $fh) {
-                        $chunk = fread($fh, 8192);
-                        if ($chunk !== '' && $chunk !== false) {
-                            $buf .= $chunk;
-                        }
-                    }
-                    while (($pos = strpos($buf, "\n")) !== false) {
-                        $line = substr($buf, 0, $pos);
-                        $buf  = substr($buf, $pos + 1);
-                        $hop  = self::parseHop($line);
-                        if ($hop !== null) {
-                            $hops++;
-                            self::sseEvent('hop', $hop);
-                            $lastBeat = time();
-                            if ($hop['timeout']) {
-                                if (++$stars >= self::STALL_HOPS) {
-                                    @proc_terminate($proc);
-                                    $note = 'Destino sem resposta nos últimos saltos (ICMP filtrado no caminho).';
-                                    break 2; // sai do while (true)
-                                }
-                            } else {
-                                $stars = 0;
-                            }
-                        }
-                    }
-                } elseif (time() - $lastBeat >= 5) {
-                    echo ": keep-alive\n\n"; // comentário SSE mantém a conexão viva
-                    @flush();
-                    $lastBeat = time();
-                }
-
-                $status = proc_get_status($proc);
-                if (!$status['running']) {
-                    $rest = stream_get_contents($pipes[1]);
-                    if ($rest !== false) {
-                        $buf .= $rest;
-                    }
-                    foreach (explode("\n", $buf) as $line) {
-                        $hop = self::parseHop($line);
-                        if ($hop !== null) {
-                            $hops++;
-                            self::sseEvent('hop', $hop);
-                        }
-                    }
-                    break;
-                }
-            }
-
-            foreach ($pipes as $p) {
-                if (is_resource($p)) {
-                    @fclose($p);
-                }
-            }
-            @proc_close($proc);
-
-            $done = ['ok' => !$timedOut, 'hops' => $hops];
+            $done = ['ok' => $ok, 'hops' => $doneHops, 'passes' => $pass];
             if ($note !== '') {
                 $done['note'] = $note;
             }
             self::sseEvent('done', $done);
         } finally {
-            $release();
+            @unlink($slot);
         }
+    }
+
+    /**
+     * Uma passada de traceroute, emitindo cada salto como evento SSE 'hop'.
+     * Retorna ['hops', 'lastHop', 'timedOut', 'aborted', 'note'].
+     */
+    private static function passSse(array $t, bool $live, int $maxHops): array
+    {
+        $out = ['hops' => 0, 'lastHop' => 0, 'timedOut' => false, 'aborted' => false, 'note' => ''];
+
+        $desc = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $proc = @proc_open(self::argv($t, $live, $maxHops), $desc, $pipes);
+        if (!is_resource($proc)) {
+            self::sseEvent('error', ['message' => 'Falha ao iniciar o traceroute']);
+            $out['timedOut'] = true; // encerra a sessão
+            return $out;
+        }
+
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $deadline = time() + (int) self::opt('timeout') + 3;
+        $buf = '';
+        $stars = 0;      // "* * *" consecutivos (aborta cedo, ver STALL_HOPS)
+        $lastBeat = time();
+
+        while (true) {
+            if (connection_aborted()) {
+                @proc_terminate($proc);
+                $out['aborted'] = true;
+                break;
+            }
+            if (time() > $deadline) {
+                @proc_terminate($proc);
+                $out['timedOut'] = true;
+                self::sseEvent('error', ['message' => 'Tempo esgotado']);
+                break;
+            }
+
+            $read = [$pipes[1], $pipes[2]];
+            $w = null;
+            $x = null;
+            $n = @stream_select($read, $w, $x, 1);
+            if ($n === false) {
+                break;
+            }
+            if ($n > 0) {
+                foreach ($read as $fh) {
+                    $chunk = fread($fh, 8192);
+                    if ($chunk !== '' && $chunk !== false) {
+                        $buf .= $chunk;
+                    }
+                }
+                while (($pos = strpos($buf, "\n")) !== false) {
+                    $line = substr($buf, 0, $pos);
+                    $buf  = substr($buf, $pos + 1);
+                    $hop  = self::parseHop($line);
+                    if ($hop === null) {
+                        continue;
+                    }
+                    $out['hops']++;
+                    $out['lastHop'] = max($out['lastHop'], $hop['hop']);
+                    self::sseEvent('hop', $hop);
+                    $lastBeat = time();
+                    if ($hop['timeout']) {
+                        if (++$stars >= self::STALL_HOPS) {
+                            @proc_terminate($proc);
+                            $out['note'] = 'Destino sem resposta nos últimos saltos (ICMP filtrado no caminho).';
+                            break 2; // sai do while (true)
+                        }
+                    } else {
+                        $stars = 0;
+                    }
+                }
+            } elseif (time() - $lastBeat >= 5) {
+                echo ": keep-alive\n\n"; // comentário SSE mantém a conexão viva
+                @flush();
+                $lastBeat = time();
+            }
+
+            $status = proc_get_status($proc);
+            if (!$status['running']) {
+                $rest = stream_get_contents($pipes[1]);
+                if ($rest !== false) {
+                    $buf .= $rest;
+                }
+                foreach (explode("\n", $buf) as $line) {
+                    $hop = self::parseHop($line);
+                    if ($hop !== null) {
+                        $out['hops']++;
+                        $out['lastHop'] = max($out['lastHop'], $hop['hop']);
+                        self::sseEvent('hop', $hop);
+                    }
+                }
+                break;
+            }
+        }
+
+        foreach ($pipes as $p) {
+            if (is_resource($p)) {
+                @fclose($p);
+            }
+        }
+        @proc_close($proc);
+        return $out;
     }
 
     /** Resposta SSE curta de erro (limite/alvo inválido antes de executar). */
@@ -300,8 +365,8 @@ final class NetTrace
     /** Roda o traceroute e devolve a saída em texto (endpoints curl). */
     public static function runText(array $t): string
     {
-        $release = self::acquireSlot();
-        if ($release === null) {
+        $slot = self::acquireSlot();
+        if ($slot === null) {
             return "traceroute indisponível: muitas execuções simultâneas\n";
         }
         try {
@@ -324,7 +389,7 @@ final class NetTrace
             $out = $out !== '' ? $out : $err;
             return $out !== '' ? $out : "sem saída\n";
         } finally {
-            $release();
+            @unlink($slot);
         }
     }
 
@@ -418,33 +483,31 @@ final class NetTrace
     }
 
     /**
-     * Reserva um "slot" de execução (protege o pool do PHP-FPM). Retorna um
-     * callable que libera o slot, ou null se o teto já está lotado. Slots com
-     * mais de 60 s são considerados órfãos e reciclados.
+     * Reserva um "slot" de execução (protege o pool do PHP-FPM). Retorna o
+     * arquivo-token do slot — libere com @unlink; sessões longas renovam o
+     * heartbeat com @touch — ou null se o teto está lotado. Slots sem
+     * heartbeat há mais de 60 s são órfãos e reciclados.
      */
-    private static function acquireSlot(): ?callable
+    private static function acquireSlot(): ?string
     {
-        $max = (int) self::opt('max_concurrent');
-        if ($max <= 0) {
-            return static function (): void {};
-        }
         $dir = self::cacheDir() . '/trace-slots';
         if (!is_dir($dir)) {
             @mkdir($dir, 0770, true);
         }
-        foreach (glob($dir . '/*.slot') ?: [] as $f) {
-            if (@filemtime($f) < time() - 60) {
-                @unlink($f);
+        $max = (int) self::opt('max_concurrent');
+        if ($max > 0) {
+            foreach (glob($dir . '/*.slot') ?: [] as $f) {
+                if (@filemtime($f) < time() - 60) {
+                    @unlink($f);
+                }
             }
-        }
-        if (count(glob($dir . '/*.slot') ?: []) >= $max) {
-            return null;
+            if (count(glob($dir . '/*.slot') ?: []) >= $max) {
+                return null;
+            }
         }
         $mine = $dir . '/' . getmypid() . '-' . substr(md5(uniqid('', true)), 0, 8) . '.slot';
         @file_put_contents($mine, '1');
-        return static function () use ($mine): void {
-            @unlink($mine);
-        };
+        return $mine;
     }
 
     private static function cacheDir(): string
