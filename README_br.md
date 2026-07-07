@@ -58,6 +58,9 @@ meuip.rs/
 | `/coord` | `lat,long` |
 | `/all` | JSON com tudo |
 | `/full` | Página HTML completa |
+| `/trace` | Traceroute: página HTML (navegador) ou rota até o seu IP (curl) |
+| `/trace/<host>` | Traceroute até um destino em texto puro (looking glass) |
+| `/trace/stream[?host=]` | Traceroute ao vivo via SSE (usado pela página) |
 | `/doc` | Documentação |
 
 ## Auditoria (INTRANET)

@@ -13,6 +13,7 @@ $navItems = [
     '/region'  => 'Região',
     '/coord'   => 'Coord',
     '/all'     => 'Todos',
+    '/trace'   => 'Trace',
     '/doc'     => 'Docs',
 ];
 

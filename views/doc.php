@@ -22,6 +22,8 @@ $ip = $ip ?? '';
         <tr><td>Região</td><td><?= $cmd('curl meuip.rs/region') ?></td><td class="out">texto</td></tr>
         <tr><td>Coordenadas</td><td><?= $cmd('curl meuip.rs/coord') ?></td><td class="out">lat,long</td></tr>
         <tr><td>Todos os dados</td><td><?= $cmd('curl meuip.rs/all') ?></td><td class="out">JSON</td></tr>
+        <tr><td>Traceroute até você</td><td><?= $cmd('curl meuip.rs/trace') ?></td><td class="out">texto</td></tr>
+        <tr><td>Traceroute até um destino</td><td><?= $cmd('curl meuip.rs/trace/1.1.1.1') ?></td><td class="out">texto</td></tr>
     </table>
 </div>
 

@@ -12,9 +12,10 @@ require __DIR__ . '/src/bootstrap.php';
 
 use Meuip\AccessLog;
 use Meuip\GeoLookup;
+use Meuip\NetTrace;
 use Meuip\UserAgent;
 
-const MEUIP_VERSION = '2.1';
+const MEUIP_VERSION = '2.2';
 
 // --- Entrada ---------------------------------------------------------------
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
@@ -28,6 +29,76 @@ $method    = (string) ($_SERVER['REQUEST_METHOD'] ?? '');
 // Geo (cacheado por IP) + registro da visita (best-effort, nunca derruba a página).
 $geo = GeoLookup::lookup($ip);
 AccessLog::record($geo);
+
+// --- Ferramenta de traceroute (rota com subcaminhos) -----------------------
+// /trace            → página HTML (browser) ou rota até o próprio IP (curl)
+// /trace/<host>     → traceroute em texto puro (curl / looking glass)
+// /trace/stream[?host=] → streaming ao vivo (SSE), consumido pela página
+if ($path === '/trace' || str_starts_with($path, '/trace/')) {
+    if (!NetTrace::enabled()) {
+        meuip_text("traceroute desabilitado\n", 404);
+        exit;
+    }
+
+    $sub      = ltrim(substr($path, strlen('/trace')), '/'); // '' | 'stream' | '<host>'
+    $isStream = ($sub === 'stream') || isset($_GET['stream']);
+
+    // Alvo: subpath /trace/<host> tem prioridade; senão ?host=; senão o IP do visitante.
+    $rawHost = '';
+    if ($sub !== '' && $sub !== 'stream') {
+        $rawHost = rawurldecode($sub);
+    } elseif (isset($_GET['host'])) {
+        $rawHost = (string) $_GET['host'];
+    }
+    $custom = trim($rawHost) !== '';
+
+    // Sem alvo livre habilitado, tudo cai para o IP do próprio visitante.
+    if ($custom && !NetTrace::allowCustom()) {
+        $custom  = false;
+        $rawHost = '';
+    }
+    $targetHost = $custom ? $rawHost : $ip;
+
+    // Página interativa: só quando é browser em /trace sem alvo/stream.
+    if (!$isStream && !$custom && $sub === '' && !meuip_is_cli_client()) {
+        meuip_view('trace', [
+            'title'       => 'BLUE3 — meuip.rs · traceroute',
+            'version'     => MEUIP_VERSION,
+            'ip'          => $ip,
+            'allowCustom' => NetTrace::allowCustom(),
+        ]);
+        exit;
+    }
+
+    // Daqui pra baixo é execução (SSE ou texto). Rate-limit por IP.
+    if (!NetTrace::rateOk($ip)) {
+        if ($isStream) {
+            NetTrace::sseError('Limite de traceroutes por minuto atingido. Tente daqui a pouco.');
+        } else {
+            meuip_text("limite por minuto atingido, tente novamente em instantes\n", 429);
+        }
+        exit;
+    }
+
+    $resolved = NetTrace::resolve($targetHost);
+    if (!$resolved['ok']) {
+        if ($isStream) {
+            NetTrace::sseError($resolved['error']);
+        } else {
+            meuip_text('alvo inválido: ' . $resolved['error'] . "\n", 400);
+        }
+        exit;
+    }
+
+    if ($isStream) {
+        NetTrace::streamSse($resolved);
+    } else {
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo NetTrace::runText($resolved);
+    }
+    exit;
+}
 
 // --- Roteamento ------------------------------------------------------------
 switch ($path) {
