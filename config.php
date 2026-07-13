@@ -31,4 +31,13 @@ return [
     'geo_rate_per_minute'  => 40,
 
     'debug' => (bool) (getenv('MEUIP_DEBUG') ?: false),
+
+    // Matomo Analytics (self-hosted em a.blue3.cloud). site_id 8 = meuip.rs.
+    // O snippet só entra no <head> (views/layout.php) com enabled=true E site_id.
+    'matomo' => [
+        'enabled'       => true,
+        'url'           => getenv('MATOMO_URL') ?: 'https://a.blue3.cloud/',
+        'site_id'       => getenv('MATOMO_SITE_ID') ?: '8',
+        'cookie_domain' => getenv('MATOMO_COOKIE_DOMAIN') ?: '',
+    ],
 ];
