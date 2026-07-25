@@ -15,7 +15,6 @@
 # Apenas `.env.example` (template sem segredos) é versionado. Qualquer .env
 # real ou variante (.dev, .production, .backup, .testing) fica fora.
 .env
-.claude/settings.local.json
 
 # -----------------------------------------------------------------------------
 # Backups locais
