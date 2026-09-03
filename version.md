@@ -1,6 +1,6 @@
 # Versão — MEUIP
 
-**Versão atual:** `0.2.3`
+**Versão atual:** `0.2.4`
 
 Serviço "qual é o meu IP" da Blue3: mostra ao visitante o IP público, ASN e dados de rede.
 
