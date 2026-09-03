@@ -1,6 +1,6 @@
 # Versão — MEUIP
 
-**Versão atual:** `0.2.2`
+**Versão atual:** `0.2.3`
 
 Serviço "qual é o meu IP" da Blue3: mostra ao visitante o IP público, ASN e dados de rede.
 
@@ -59,6 +59,19 @@ X.Y.Z - Descrição curta em português
 ## 3. Changelog
 
 > Ordem decrescente (mais recente no topo).
+
+### `0.2.3` — 2026-09-02 — Agent doc: Releases rule and the English-only language rule
+
+Marked echo of the single source at samirhvbr/repodocs. Two rules land here:
+
+1. The `version.md` of the default branch ON GITHUB is what the GitHub Releases
+   show, and a commit that bumps it is not finished until that version has a
+   tag, a Release and the `Latest` badge — same push, not "later".
+2. Everything in this repository is English (US): documents, commit messages,
+   pull requests, issues, code comments. The only carve-out is end-user-facing
+   product strings. History is not rewritten.
+
+Delimited by a marker, so re-running replaces instead of duplicating.
 
 ### `0.2.2` — 2026-09-02 — Regra de Releases no doc de agente: bump e Release sao um ato so
 
