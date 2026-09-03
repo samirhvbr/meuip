@@ -1,6 +1,6 @@
 # Versão — MEUIP
 
-**Versão atual:** `0.2.1`
+**Versão atual:** `0.2.2`
 
 Serviço "qual é o meu IP" da Blue3: mostra ao visitante o IP público, ASN e dados de rede.
 
@@ -59,6 +59,15 @@ X.Y.Z - Descrição curta em português
 ## 3. Changelog
 
 > Ordem decrescente (mais recente no topo).
+
+### `0.2.2` — 2026-09-02 — Regra de Releases no doc de agente: bump e Release sao um ato so
+
+Eco marcado da norma unica em samirhvbr/repodocs (docs/versioning.md). O
+`version.md` da branch padrao NO GITHUB e o que as Releases no GitHub mostram, e
+um commit que bumpa o `version.md` nao esta terminado ate aquela versao ter tag,
+Release e o badge `Latest`.
+
+Bloco delimitado por marcador: rodar de novo substitui, nao duplica.
 
 ### `0.2.1` — 2026-09-02 — Releases automaticas: o version.md da master vira tag e Release
 
