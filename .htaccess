@@ -8,12 +8,37 @@
     RewriteRule ^ index.php [L]
 </IfModule>
 
+# ⚠️ Bloqueia QUALQUER caminho com componente iniciado por ponto.
+#
+# Fecha `/.git/`, que respondia **200** em produção em 08/09/2026 — repositório
+# inteiro baixável por dumb-http, incluindo o `config.php` versionado (senha do
+# MySQL de dois bancos e token ipinfo) e o `_legacy_v1/`.
+#
+# Precisa ser regra de CAMINHO, não `FilesMatch`: o arquivo exposto chama-se
+# `HEAD`, sem ponto — nenhum `FilesMatch` o alcançaria.
+#
+# A causa é o `deploy.sh` fazer `git fetch` + `merge --ff-only` DENTRO do
+# DocumentRoot. O conserto de verdade é a mesma regra no vhost (onde
+# `AllowOverride` não desliga) e o `.git` fora do docroot; esta linha é a
+# mitigação que viaja no deploy.
+#
+# `.well-known/` fica de fora: é por onde o Let's Encrypt valida o domínio.
+<IfModule mod_rewrite.c>
+    RewriteRule "(^|/)\.(?!well-known/)" - [F,L]
+</IfModule>
+
 # --- Bloqueia acesso direto a configuração, código e views ---
 <FilesMatch "^(config\.php|config\.example\.php|composer\.(json|lock))$">
     Require all denied
 </FilesMatch>
 RedirectMatch 404 ^/(src|views)(/|$)
 RedirectMatch 404 ^/LOG(/|$)
+# `_legacy_v1/` foi APAGADA do repositório em 08/09/2026 (o histórico guarda o
+# código). Esta linha fica como rede: um servidor que ainda não recebeu o deploy,
+# ou um arquivo que sobreviva ao rsync, continua sem ser executado. Era código
+# com SQL injection via Referer/Cookie/Host e duas senhas de banco em claro,
+# executando em produção.
+RedirectMatch 404 ^/_legacy_v1(/|$)
 
 # Bloqueia backups e fontes sensíveis
 <FilesMatch "(\.(bak|orig|sql|log|md|sh|py|inc)|~)$">
