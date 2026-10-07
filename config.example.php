@@ -55,6 +55,15 @@ return [
         'cookie_domain' => getenv('MATOMO_COOKIE_DOMAIN') ?: '',
     ],
 
+    // Google tag (gtag.js), Google Analytics 4, in the HTML pages only (the curl
+    // answers never carry it). Optional: when this key is absent the code falls back
+    // to the production id below, so the real config.php needs no edit. Set it to ''
+    // to turn the tag off; debug => true turns it off as well. See
+    // meuip_google_tag_id() in src/helpers.php. "meuip.rs – GA4", stream https://meuip.rs.
+    'google' => [
+        'tag_id' => 'G-2Y0G9PYWYT',
+    ],
+
     // Ferramenta de traceroute (/trace). Roda `traceroute` no servidor via
     // proc_open (sem shell). Alvos em faixa privada/reservada/CGNAT são sempre
     // bloqueados no código (anti-SSRF), independente desta config.

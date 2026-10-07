@@ -96,6 +96,18 @@ $cmd = function (string $command) use ($ICON_COPY): string {
     <noscript><p><img referrerpolicy="no-referrer-when-downgrade" src="<?= e($matomoUrl) ?>matomo.php?idsite=<?= e($matomoSiteId) ?>&amp;rec=1" style="border:0;" alt="" /></p></noscript>
     <!-- End Matomo -->
     <?php endif; ?>
+    <?php $googleTagId = meuip_google_tag_id();
+    if ($googleTagId !== ''): ?>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($googleTagId) ?>"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', '<?= e($googleTagId) ?>');
+    </script>
+    <?php endif; ?>
 </head>
 <body>
     <header class="topbar">

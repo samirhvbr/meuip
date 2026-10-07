@@ -15,6 +15,32 @@ function e($value): string
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/** Measurement id of the "meuip.rs – GA4" property. Public: it is in the page source. */
+const MEUIP_GOOGLE_TAG_ID = 'G-2Y0G9PYWYT';
+
+/**
+ * Google tag (gtag.js) measurement id for the HTML pages; '' means the tag is off.
+ *
+ * config.php is gitignored and per environment, so a missing 'google' => ['tag_id']
+ * key falls back to the production id and a deploy ships the tag without touching
+ * the server's config; an explicit '' turns it off. Debug mode (development only)
+ * turns it off too, so a local copy sends no hits. A value that is not a Google
+ * measurement id is dropped, which keeps it safe inside the inline script.
+ * Only views/layout.php calls this: the plain-text and JSON answers never carry it.
+ */
+function meuip_google_tag_id(): string
+{
+    if (!empty(meuip_config('debug'))) {
+        return '';
+    }
+    $google = meuip_config('google');
+    $id = is_array($google) && array_key_exists('tag_id', $google)
+        ? trim((string) $google['tag_id'])
+        : MEUIP_GOOGLE_TAG_ID;
+
+    return preg_match('/^[A-Z]{1,3}-[A-Z0-9]{4,20}$/', $id) === 1 ? $id : '';
+}
+
 /** IP do cliente, validado. Retorna '' se inválido. */
 function meuip_client_ip(): string
 {
